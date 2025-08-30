@@ -82,17 +82,37 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // try to preload metadata on mount so mobile browsers don't block the user gesture
+    const audio = audioRef.current;
+    if (audio) {
+      const onLoaded = () => {
+        // nothing else — start time will be computed in playLast10Seconds from duration
+      };
+      audio.addEventListener("loadedmetadata", onLoaded);
+      try {
+        // preload metadata
+        audio.load();
+      } catch (e) {
+        // ignore
+      }
+
+      return () => {
+        audio.removeEventListener("loadedmetadata", onLoaded);
+        if (stopTimeoutRef.current) {
+          clearTimeout(stopTimeoutRef.current);
+          stopTimeoutRef.current = null;
+        }
+        try {
+          audio.pause();
+        } catch (e) {
+          // ignore
+        }
+      };
+    }
     return () => {
       if (stopTimeoutRef.current) {
         clearTimeout(stopTimeoutRef.current);
         stopTimeoutRef.current = null;
-      }
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-        } catch (e) {
-          // ignore
-        }
       }
     };
   }, []);
@@ -107,6 +127,7 @@ export default function Home() {
             if (el) audioRef.current = el;
           }}
           preload="auto"
+          playsInline
           style={{ display: "none" }}
         >
           <source src="/chevette-turbo.mp3" type="audio/mpeg" />
@@ -114,6 +135,8 @@ export default function Home() {
         </audio>
 
         <button
+          onPointerDown={() => audioRef.current?.load()}
+          onTouchStart={() => audioRef.current?.load()}
           onClick={() => {
             setCount((c) => c + 1);
             void playLast10Seconds();
